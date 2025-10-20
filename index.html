@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="uk" class="">
+<head>
+  <meta charset="UTF-8">
+  <title>Тип мислення — Новий тест</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white transition duration-500">
+  <div class="fixed top-0 left-0 w-full bg-white dark:bg-gray-800 shadow-md z-50 transition-all duration-300">
+    <div class="flex justify-between items-center p-4 max-w-4xl mx-auto">
+      <div class="flex gap-2">
+        <button class="tab-btn bg-blue-600 text-white px-4 py-2 rounded hover:scale-105 transition" onclick="loadQuestions(5, event)">5 питань</button>
+        <button class="tab-btn bg-blue-600 text-white px-4 py-2 rounded hover:scale-105 transition" onclick="loadQuestions(10, event)">10 питань</button>
+      </div>
+      <button class="theme-toggle border-2 border-blue-600 text-blue-600 px-4 py-2 rounded hover:bg-blue-600 hover:text-white transition" onclick="toggleTheme()">🌓 Тема</button>
+    </div>
+  </div>
+
+  <main class="pt-28 px-4 max-w-3xl mx-auto">
+    <h1 class="text-3xl font-bold text-center mb-6">Тест на тип мислення</h1>
+    <div id="form_div">
+      <form id="quizForm" class="space-y-6"></form>
+      <div class="mt-8 space-y-4">
+        <input type="text" id="userName" class="w-full p-3 rounded border border-gray-300 text-black" placeholder="Ваше ім'я" required>
+        <input type="email" id="userEmail" class="w-full p-3 rounded border border-gray-300 text-black" placeholder="Ваш email (необов'язково)">
+        <button class="submit w-full bg-blue-600 text-white py-3 rounded hover:scale-105 transition" onclick="submitQuiz(event)">Показати результат</button>
+      </div>
+    </div>
+    <div id="resultContainer" style="display: flex; gap: 2rem; align-items: flex-start; justify-content: center; margin-top: 2rem;">
+      <canvas id="resultChart" width="300" height="300"></canvas>
+      <div style="flex: 1; min-width: 320px; max-width: 500px;">
+        <div id="result" style="margin-bottom: 1rem; font-weight: bold;"></div>
+        <ul id="scoreList" style="list-style: none; padding: 0; margin: 0; line-height: 1.6;"></ul>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    };
+    const savedAnswers = {};
+    const quizForm = document.getElementById("quizForm");
+    const descriptions = {
+      "аналітичне": "Ви орієнтуєтесь на логіку, аналіз і раціональне мислення...",
+      "креативне": "Ваша сила — уявлення, інновації та створення нових ідей...",
+      "практичне": "Ви дієвий(а) і орієнтований(а) на результат...",
+      "емоційне": "Ви емпатійний(а), відчуваєте людей і їх потреби...",
+      "естетичне": "Вам важливі краса, гармонія й відчуття стилю...",
+      "інтуїтивне": "Ваше мислення базується на внутрішньому чутті...",
+      "стратегічне": "Ви бачите картину загалом, мислите масштабно..."
+    };
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.toggle('dark'); // добавляет или удаляет класс 'dark'
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
+    // Встановлення теми при завантаженні сторінки
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+
+    const allQuestions = [
+  { text: "Яке завдання здається вам найцікавішим?", options: [
+    { text: "Логічна головоломка", type: "аналітичне" },
+    { text: "Малюнок чи музика", type: "креативне" },
+    { text: "Полагодити щось руками", type: "практичне" },
+    { text: "Заспокоїти друга", type: "емоційне" },
+    { text: "Дизайн простору", type: "естетичне" },
+    { text: "Прислухатись до внутрішнього голосу", type: "інтуїтивне" },
+    { text: "Розробити довгостроковий план", type: "стратегічне" },
+  ]},
+  { text: "Що ви робите у вільний час?", options: [
+    { text: "Читаю наукову статтю", type: "аналітичне" },
+    { text: "Малюю чи пишу вірші", type: "креативне" },
+    { text: "Щось лагоджу або прибираю", type: "практичне" },
+    { text: "Говорю з друзями", type: "емоційне" },
+    { text: "Насолоджуюсь красою природи", type: "естетичне" },
+    { text: "Медитую", type: "інтуїтивне" },
+    { text: "Складаю плани на майбутнє", type: "стратегічне" },
+  ]},
+  { text: "Який ваш улюблений спосіб навчання?", options: [
+    { text: "Читання та аналіз", type: "аналітичне" },
+    { text: "Використання творчих методів", type: "креативне" },
+    { text: "Практичні вправи", type: "практичне" },
+    { text: "Обговорення з іншими", type: "емоційне" },
+    { text: "Візуальні образи", type: "естетичне" },
+    { text: "Внутрішнє чуття", type: "інтуїтивне" },
+    { text: "Стратегічне планування", type: "стратегічне" },
+  ]},
+  { text: "Що вас мотивує найбільше?", options: [
+    { text: "Логіка і рішення", type: "аналітичне" },
+    { text: "Творчість і натхнення", type: "креативне" },
+    { text: "Результати і досягнення", type: "практичне" },
+    { text: "Зв’язок із людьми", type: "емоційне" },
+    { text: "Краса і гармонія", type: "естетичне" },
+    { text: "Внутрішня інтуїція", type: "інтуїтивне" },
+    { text: "Довгострокове планування", type: "стратегічне" },
+  ]},
+  { text: "Як ви приймаєте рішення?", options: [
+    { text: "На основі логіки", type: "аналітичне" },
+    { text: "Інтуїтивно", type: "інтуїтивне" },
+    { text: "За допомогою емоцій", type: "емоційне" },
+    { text: "Практично", type: "практичне" },
+    { text: "Мистецьки", type: "естетичне" },
+    { text: "Стратегічно", type: "стратегічне" },
+    { text: "Креативно", type: "креативне" },
+  ]},
+  { text: "Що вас найбільше захоплює?", options: [
+    { text: "Наука і аналітика", type: "аналітичне" },
+    { text: "Мистецтво і культура", type: "естетичне" },
+    { text: "Рух і спорт", type: "практичне" },
+    { text: "Спілкування та емоції", type: "емоційне" },
+    { text: "Ідеї і натхнення", type: "креативне" },
+    { text: "Планування та стратегії", type: "стратегічне" },
+    { text: "Внутрішня гармонія", type: "інтуїтивне" },
+  ]},
+  { text: "Який ваш улюблений стиль роботи?", options: [
+    { text: "Логічний", type: "аналітичне" },
+    { text: "Творчий", type: "креативне" },
+    { text: "Практичний", type: "практичне" },
+    { text: "Емоційний", type: "емоційне" },
+    { text: "Візуальний", type: "естетичне" },
+    { text: "Інтуїтивний", type: "інтуїтивне" },
+    { text: "Стратегічний", type: "стратегічне" },
+  ]},
+  { text: "Що ви цінуєте найбільше у житті?", options: [
+    { text: "Знання і логіка", type: "аналітичне" },
+    { text: "Мистецтво і краса", type: "естетичне" },
+    { text: "Практичність", type: "практичне" },
+    { text: "Емоційний зв’язок", type: "емоційне" },
+    { text: "Ідеї та натхнення", type: "креативне" },
+    { text: "Стратегічне мислення", type: "стратегічне" },
+    { text: "Внутрішня гармонія", type: "інтуїтивне" },
+  ]},
+  { text: "Як ви зазвичай навчаєтесь?", options: [
+    { text: "Через читання", type: "аналітичне" },
+    { text: "Через створення", type: "креативне" },
+    { text: "Практичним досвідом", type: "практичне" },
+    { text: "Обговорюючи з іншими", type: "емоційне" },
+    { text: "Візуально", type: "естетичне" },
+    { text: "Інтуїтивно", type: "інтуїтивне" },
+    { text: "Стратегічно", type: "стратегічне" },
+  ]},
+  { text: "Що для вас важливіше?", options: [
+    { text: "Логіка", type: "аналітичне" },
+    { text: "Творчість", type: "креативне" },
+    { text: "Результат", type: "практичне" },
+    { text: "Емоції", type: "емоційне" },
+    { text: "Гармонія", type: "естетичне" },
+    { text: "Інтуїція", type: "інтуїтивне" },
+    { text: "Стратегія", type: "стратегічне" },
+  ]},
+  { text: "Який ваш підхід до вирішення проблем?", options: [
+    { text: "Аналіз і логіка", type: "аналітичне" },
+    { text: "Творчий пошук", type: "креативне" },
+    { text: "Практичне застосування", type: "практичне" },
+    { text: "Внутрішні відчуття", type: "інтуїтив"}
+  ]}];
+
+    for (let i = allQuestions.length; i < 20; i++) {
+      allQuestions.push({
+        text: `Запитання №${i + 1}: Який варіант вам ближчий?`,
+        options: [
+          { text: "Логічний вибір", type: "аналітичне" },
+          { text: "Креативне натхнення", type: "креативне" },
+          { text: "Практичний підхід", type: "практичне" },
+          { text: "Співпереживання іншим", type: "емоційне" },
+          { text: "Гармонія і краса", type: "естетичне" },
+          { text: "Слухаю себе", type: "інтуїтивне" },
+          { text: "Мислю стратегічно", type: "стратегічне" },
+        ]
+      });
+    }
+
+    function loadQuestions(count, event) {
+      quizForm.innerHTML = "";
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('scale-105'));
+      if (event) event.target.classList.add('scale-105');
+
+      for (let i = 0; i < count; i++) {
+        const q = allQuestions[i];
+        const div = document.createElement("div");
+        div.className = "bg-white dark:bg-gray-800 p-5 rounded shadow";
+        div.innerHTML = `<strong class='block mb-2'>${i + 1}. ${q.text}</strong>`;
+        q.options.forEach((opt, j) => {
+          const id = `q${i}`;
+          const isChecked = savedAnswers[id] === opt.type;
+          div.innerHTML += `
+            <label class="block py-1"><input type="radio" name="${id}" value="${opt.type}" ${isChecked ? "checked" : ""} class="mr-2">${opt.text}</label>
+          `;
+        });
+        quizForm.appendChild(div);
+      }
+
+      quizForm.querySelectorAll("input[type=radio]").forEach(input => {
+        input.addEventListener("change", e => {
+          savedAnswers[e.target.name] = e.target.value;
+        });
+      });
+    }
+
+    function renderChart(typeCounts) {
+      const ctx = document.getElementById('resultChart').getContext('2d');
+      const labels = Object.keys(typeCounts);
+      const data = Object.values(typeCounts);
+
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Тип мислення',
+            data: data,
+            backgroundColor: [
+              '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#14B8A6', '#F472B6'
+            ],
+            borderWidth: 1,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const value = context.raw;
+                  const percent = ((value / total) * 100).toFixed(1);
+                  return `${context.label}: ${value} (${percent}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    async function submitQuiz(event) {
+      event.preventDefault();
+
+      const userName = document.getElementById("userName").value.trim();
+      if (!userName) {
+        alert("Будь ласка, введіть ваше ім'я.");
+        return;
+      }
+
+      // Собираем выбранные ответы
+      const selectedAnswers = {};
+      let unanswered = [];
+
+      for (let i = 0; i < quizForm.children.length; i++) {
+        const questionDiv = quizForm.children[i];
+        const inputs = questionDiv.querySelectorAll("input[type='radio']");
+        let answered = false;
+        inputs.forEach(input => {
+          if (input.checked) {
+            selectedAnswers[i] = input.value;
+            answered = true;
+          }
+        });
+        if (!answered) {
+          unanswered.push(i + 1); // вопросы нумеруем с 1
+        }
+      }
+
+      if (unanswered.length > 0) {
+        alert(`Ви не відповіли на наступні питання: ${unanswered.join(", ")}. Будь ласка, дайте відповідь на всі питання.`);
+        return;
+      }
+
+      // Если все ответы есть, считаем результаты
+      const scores = {};
+      for (const key in selectedAnswers) {
+        const type = selectedAnswers[key];
+        scores[type] = (scores[type] || 0) + 1;
+      }
+
+      // Показываем результат (например, как и было у вас)
+      showResult(scores);
+
+
+      let maxType = null;
+      let maxScore = 0;
+      for (const [type, score] of Object.entries(scores)) {
+        if (score > maxScore) {
+          maxScore = score;
+          maxType = type;
+        }
+      }
+
+      name = document.getElementById("userName").value
+      email = document.getElementById("userEmail").value
+      result = maxType.charAt(0).toUpperCase() + maxType.slice(1) + " мислення"
+
+
+      const data = {
+        name,
+        email,
+        result
+      }
+
+      try {
+        const response = await fetch('notify.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+      });
+
+      // Проверяем, если ответ пустой
+      if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+                            // Пробуем распарсить ответ как JSON
+                            const result = await response.json().catch((error) => {
+                                console.error('Ошибка при парсинге ответа:', error);
+                                throw new Error('Ответ не в формате JSON');
+                            });
+
+                            if (result.success) {
+                              return
+                            } else {
+                                throw new Error(result.message || 'Ошибка при отправке заявки');
+                            }
+                        } catch (error) {
+                            console.error('Ошибка');
+                        }
+    }
+
+function showResult(scores) {
+  // Ваша логика вывода результатов — не менял
+  const resultContainer = document.getElementById("resultContainer");
+  const resultDiv = document.getElementById("result");
+  const scoreList = document.getElementById("scoreList");
+  const ctx = document.getElementById("resultChart").getContext("2d");
+
+  // Очистим предыдущий результат
+  scoreList.innerHTML = "";
+  resultDiv.textContent = "";
+
+  // Находим максимальный тип мышления
+  let maxType = null;
+  let maxScore = 0;
+  for (const [type, score] of Object.entries(scores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      maxType = type;
+    }
+  }
+
+  // Выводим заголовок и описание
+  if (maxType) {
+    resultDiv.textContent = `Ваш тип мислення: ${maxType.charAt(0).toUpperCase() + maxType.slice(1)}. ${descriptions[maxType] || ""}`;
+  }
+
+  // Выводим подробный список очков
+  for (const [type, score] of Object.entries(scores)) {
+    const li = document.createElement("li");
+    li.textContent = `${type.charAt(0).toUpperCase() + type.slice(1)}: ${score}`;
+    scoreList.appendChild(li);
+  }
+
+  // Строим диаграмму
+  if (window.myChart) window.myChart.destroy();
+  window.myChart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: Object.keys(scores).map(t => t.charAt(0).toUpperCase() + t.slice(1)),
+      datasets: [{
+        data: Object.values(scores),
+        backgroundColor: [
+          "#3B82F6", "#F59E0B", "#10B981", "#EF4444", "#8B5CF6", "#F43F5E", "#6366F1"
+        ],
+      }]
+    },
+    options: {
+      responsive: false,
+      plugins: {
+        legend: { position: "bottom" }
+      }
+    }
+  });
+
+  resultContainer.style.display = "flex";
+  document.getElementById("form_div").style.display = "none";
+}
+
+      // при загрузке страницы — восстанавливаем сохранённую тему
+      window.addEventListener('DOMContentLoaded', () => {
+        if (localStorage.getItem('theme') === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      });
+
+    loadQuestions(5);
+  </script>
+</body>
+</html>
